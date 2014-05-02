@@ -1,142 +1,183 @@
 #include "QPagesTextEdit.h"
 
-#include <QTextDocument>
-#include <QTextEdit>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
+#include <QPainter>
+#include <QPaintEvent>
+#include <QDebug>
+#include <QScrollBar>
 
-namespace {
-	/**
-	 * @brief Расстояние между страницами
-	 */
-	const int PAGE_MARGIN = 8;
+
+QPagesTextEdit::QPagesTextEdit(QWidget *parent) :
+	QTextEdit(parent),
+	m_usePageMode(false),
+	m_charsInLine(0),
+	m_linesInPage(0)
+{
+	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 }
 
-
-QPagesTextEdit::QPagesTextEdit(QWidget* _parent, int _charsInLine, int _linesInPage) :
-	QScrollArea(_parent),
-	m_charsInLine(_charsInLine),
-	m_linesInPage(_linesInPage),
-	m_pagesLayout(new QVBoxLayout),
-	m_document(new QTextDocument(this))
+bool QPagesTextEdit::usePageMode() const
 {
-	//
-	// Настраиваем виджет
-	//
-	setWidgetResizable(true);
-
-	//
-	// Настраиваем компоновку виджета
-	//
-
-	m_pagesLayout->setContentsMargins(QMargins(0, PAGE_MARGIN, 0, PAGE_MARGIN));
-	m_pagesLayout->setSpacing(PAGE_MARGIN);
-	m_pagesLayout->addStretch();
-
-	QHBoxLayout* layout = new QHBoxLayout;
-	layout->setContentsMargins(QMargins());
-	layout->setSpacing(0);
-	layout->addStretch();
-	layout->addLayout(m_pagesLayout);
-	layout->addStretch();
-
-	QWidget* contents = new QWidget(this);
-	contents->setLayout(layout);
-	setWidget(contents);
-
-	//
-	// Добавляем пустую страницу
-	//
-	addPage();
+	return m_usePageMode;
 }
 
-QTextDocument* QPagesTextEdit::document() const
+void QPagesTextEdit::setUsePageMode(bool _use)
 {
-	return m_document;
-}
-
-void QPagesTextEdit::setDocument(QTextDocument* _document)
-{
-	if (m_document != _document) {
-		m_document = _document;
-
+	if (m_usePageMode != _use) {
 		//
-		// Переформировать настройки всех редакторов, т.к. изменился документ
+		// Если необходимо установить режим использования постраничного вывода, то
+		// обязательно должен быть задан размер страницы
 		//
-		foreach (QTextEdit* page, m_pages) {
-			initPage(page);
+		if (_use
+			&& m_charsInLine > 0
+			&& m_linesInPage > 0) {
+			m_usePageMode = true;
+		}
+		//
+		// Для установки режима сплошного отображения ни каких ограничений нет
+		// поэтому устанавливаем его в любом случае
+		//
+		else if (!_use) {
+			m_usePageMode = false;
 		}
 
 		//
-		// FIXME: Загрузить текст в документы
+		// Перерисуем себя
 		//
+		repaint();
 	}
 }
 
-QTextEdit* QPagesTextEdit::createPage()
+void QPagesTextEdit::setPageSize(int _charsInLine, int _linesInPage)
 {
-	return new QTextEdit;
-}
-#include <QDebug>
-void QPagesTextEdit::aboutTextChanged()
-{
-	if (QTextEdit* page = qobject_cast<QTextEdit*>(sender())) {
-		//
-		// Если текст не влезает в страницу, отсылаем его следующей
-		//
-
-		// ... устанавливаем размер страницы документа
-		page->document()->setPageSize(page/*->viewport()*/->rect().size());
-//		if (page->document()->pageCount() > 1) {
-			qDebug() << page->document()->pageCount();
-//		}
+	if (m_charsInLine != _charsInLine
+		|| m_linesInPage != _linesInPage) {
+		m_charsInLine = _charsInLine;
+		m_linesInPage = _linesInPage;
 	}
 }
 
-void QPagesTextEdit::initPage(QTextEdit* _page) const
+void QPagesTextEdit::paintEvent(QPaintEvent* _event)
 {
-	//
-	// Отключить полосы прокрутки редактора
-	//
-	_page->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	_page->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	updateInnerGeometry();
 
-	//
-	// Обновить настройки документа редактора в соответствии с настройками общего документа
-	//
-	_page->document()->setDocumentMargin(m_document->documentMargin());
-	_page->document()->setDefaultFont(m_document->defaultFont());
+	paintPagesView();
 
-	//
-	// Настроить минимальный размер редактора
-	// Учитываются:
-	// - кол-во символов в строке
-	// - кол-во строк в документе
-	// - отступы документа
-	//
-
-	QFontMetrics fm(m_document->defaultFont());
-	int pageWidth = (m_document->documentMargin() * 2) + (fm.width("W") * m_charsInLine);
-	int pageHeight = (m_document->documentMargin() * 2) + (fm.height() * m_linesInPage);
-	_page->setFixedSize(pageWidth, pageHeight);
-
-	//
-	// Соединяем сигнал об изменении текста в редакторе с обработчиком
-	//
-	connect(_page, SIGNAL(textChanged()), this, SLOT(aboutTextChanged()));
+	QTextEdit::paintEvent(_event);
 }
 
-void QPagesTextEdit::addPage()
+void QPagesTextEdit::updateInnerGeometry()
 {
 	//
-	// Создаём и настраиваем редактор страницы
+	// Формируем параметры отображения
 	//
-	QTextEdit* page = createPage();
-	initPage(page);
+	QSizeF documentSize;
+	QMargins viewportMargins;
+
+	if (m_usePageMode) {
+		//
+		// Настроить размер документа
+		// Учитываются:
+		// - кол-во символов в строке
+		// - кол-во строк в документе
+		// - отступы документа
+		//
+
+		QFontMetrics fm(document()->defaultFont());
+		int pageWidth = (document()->documentMargin() * 2) + (fm.width("W") * m_charsInLine);
+		int pageHeight = (document()->documentMargin() * 2) + (fm.height() * m_linesInPage) + 2;
+
+		documentSize = QSizeF(pageWidth, pageHeight);
+
+		//
+		// Рассчитываем отступы для viewport
+		//
+		if (width() > pageWidth) {
+			viewportMargins =
+					QMargins(
+						(width() - pageWidth - verticalScrollBar()->width() - 2)/2,
+						20,
+						(width() - pageWidth - verticalScrollBar()->width() - 2)/2,
+						20);
+		} else {
+			viewportMargins = QMargins(0, 20, 0, 20);
+		}
+	}
 
 	//
-	// Сохраняем редактор
+	// Применяем параметры отображения
 	//
-	m_pagesLayout->insertWidget(m_pages.count(), page);
-	m_pages.append(page);
+
+	if (document()->pageSize() != documentSize) {
+		document()->setPageSize(documentSize);
+	}
+
+	setViewportMargins(viewportMargins);
+}
+
+void QPagesTextEdit::paintPagesView()
+{
+	//
+	// Оформление рисуется только тогда, когда редактор находится в постраничном режиме
+	//
+	if (m_usePageMode) {
+		//
+		// Нарисовать линии разрыва страниц
+		//
+
+		QFontMetrics fm(document()->defaultFont());
+		int pageWidth = (document()->documentMargin() * 2) + (fm.width("W") * m_charsInLine);
+		int pageHeight = (document()->documentMargin() * 2) + (fm.height() * m_linesInPage) + 2;
+
+		QPainter p(viewport());
+		QPen spacePen(palette().window(), 9);
+		QPen borderPen(palette().dark(), 1);
+
+		int curHeight = pageHeight - (verticalScrollBar()->value() % pageHeight);
+
+		//
+		// Нарисовать верхнюю границу
+		//
+		if (curHeight - pageHeight >= 0) {
+			p.setPen(borderPen);
+			// ... верхняя
+			p.drawLine(0, curHeight - pageHeight, pageWidth, curHeight - pageHeight);
+		}
+
+		while (curHeight < height()) {
+			//
+			// Фон разрыва страниц
+			//
+			p.setPen(spacePen);
+			p.drawLine(0, curHeight-4, width(), curHeight-4);
+
+			//
+			// Границы страницы
+			//
+			p.setPen(borderPen);
+			// ... нижняя
+			p.drawLine(0, curHeight-8, pageWidth, curHeight-8);
+			// ... верхняя следующей страницы
+			p.drawLine(0, curHeight, pageWidth, curHeight);
+			// ... левая
+			p.drawLine(0, curHeight-pageHeight, 0, curHeight-8);
+			// ... правая
+			p.drawLine(pageWidth-1, curHeight-pageHeight, pageWidth-1, curHeight-8);
+
+			curHeight += pageHeight;
+		}
+
+		//
+		// Нарисовать боковые границы страницы, когда страница не влезает в экран
+		//
+		if (curHeight >= height()) {
+			//
+			// Границы страницы
+			//
+			p.setPen(borderPen);
+			// ... левая
+			p.drawLine(0, curHeight-pageHeight, 0, height());
+			// ... правая
+			p.drawLine(pageWidth-1, curHeight-pageHeight, pageWidth-1, height());
+		}
+	}
 }

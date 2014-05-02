@@ -12,7 +12,7 @@ TARGET = QPagesTextEdit
 TEMPLATE = app
 
 
-SOURCES += main.cpp\
+SOURCES += main.cpp \
     ../src/QPagesTextEdit.cpp
 
 HEADERS  += \

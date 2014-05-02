@@ -1,57 +1,56 @@
 #ifndef QPAGESTEXTEDIT_H
 #define QPAGESTEXTEDIT_H
 
-#include <QScrollArea>
+#include <QTextEdit>
 
-class QTextDocument;
-class QTextEdit;
-class QVBoxLayout;
-
-
-/**
- * @brief Виджет для постраничного редактирования документов
- */
-class QPagesTextEdit : public QScrollArea
+class QPagesTextEdit : public QTextEdit
 {
 	Q_OBJECT
-
 public:
-	explicit QPagesTextEdit(QWidget* _parent = 0, int _charsInLine = 60, int _linesInPage = 50);
+	explicit QPagesTextEdit(QWidget* parent = 0);
 
 	/**
-	 * @brief Получить документ редактора
+	 * @brief Установить размер страницы текста
 	 */
-	QTextDocument* document() const;
+	void setPageSize(int _charsInLine, int _linesInPage);
 
 	/**
-	 * @brief Установить документ в редактор
+	 * @brief Получить режим отображения текста
 	 */
-	void setDocument(QTextDocument* _document);
+	bool usePageMode() const;
+
+public slots:
+	/**
+	 * @brief Установить режим отображения текста
+	 */
+	void setUsePageMode(bool _use);
 
 protected:
 	/**
-	 * @brief Создать копию текстового редактора
+	 * @brief Переопределяется для корректировки документа и прорисовки оформления страниц
 	 */
-	virtual QTextEdit* createPage();
-
-private slots:
-	/**
-	 * @brief Изменился текст в каком-либо из редакторов
-	 */
-	void aboutTextChanged();
+	void paintEvent(QPaintEvent* _event);
 
 private:
 	/**
-	 * @brief Настроить заданный текстовый редактор
+	 * @brief Обновить внутреннюю геометрию
 	 */
-	void initPage(QTextEdit* _page) const;
+	void updateInnerGeometry();
 
 	/**
-	 * @brief Добавить страницу
+	 * @brief Нарисовать оформление страниц документа
 	 */
-	void addPage();
+	void paintPagesView();
 
 private:
+	/**
+	 * @brief Режим отображения текста
+	 *
+	 * true - постраничный
+	 * false - сплошной
+	 */
+	bool m_usePageMode;
+
 	/**
 	 * @brief Количество символов в строке
 	 */
@@ -62,20 +61,6 @@ private:
 	 */
 	int m_linesInPage;
 
-	/**
-	 * @brief Компоновщик страниц текста
-	 */
-	QVBoxLayout* m_pagesLayout;
-
-	/**
-	 * @brief Редакторы страниц текста
-	 */
-	QList<QTextEdit*> m_pages;
-
-	/**
-	 * @brief Документ редактора
-	 */
-	QTextDocument* m_document;
 };
 
 #endif // QPAGESTEXTEDIT_H
