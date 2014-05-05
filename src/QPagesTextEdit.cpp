@@ -70,7 +70,7 @@ void QPagesTextEdit::updateInnerGeometry()
 	//
 	// Формируем параметры отображения
 	//
-	QSizeF documentSize;
+	QSizeF documentSize(width() + verticalScrollBar()->width(), -1);
 	QMargins viewportMargins;
 
 	if (m_usePageMode) {
