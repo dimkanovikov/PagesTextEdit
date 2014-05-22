@@ -13,7 +13,9 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    ../src/QPagesTextEdit.cpp
+    ../src/PagesTextEdit.cpp \
+	../src/PageMetrics.cpp
 
 HEADERS  += \
-    ../src/QPagesTextEdit.h
+    ../src/PagesTextEdit.h \
+	../src/PageMetrics.h

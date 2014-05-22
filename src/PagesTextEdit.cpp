@@ -1,44 +1,30 @@
-#include "QPagesTextEdit.h"
+#include "PagesTextEdit.h"
 
 #include <QPainter>
 #include <QPaintEvent>
 #include <QDebug>
 #include <QScrollBar>
+#include <QTextFrame>
+#include <QTextFrameFormat>
 
 
-QPagesTextEdit::QPagesTextEdit(QWidget *parent) :
+PagesTextEdit::PagesTextEdit(QWidget *parent) :
 	QTextEdit(parent),
 	m_usePageMode(false),
-	m_charsInLine(0),
-	m_linesInPage(0)
+	m_pageMetrics(this)
 {
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 }
 
-bool QPagesTextEdit::usePageMode() const
+bool PagesTextEdit::usePageMode() const
 {
 	return m_usePageMode;
 }
 
-void QPagesTextEdit::setUsePageMode(bool _use)
+void PagesTextEdit::setUsePageMode(bool _use)
 {
 	if (m_usePageMode != _use) {
-		//
-		// Если необходимо установить режим использования постраничного вывода, то
-		// обязательно должен быть задан размер страницы
-		//
-		if (_use
-			&& m_charsInLine > 0
-			&& m_linesInPage > 0) {
-			m_usePageMode = true;
-		}
-		//
-		// Для установки режима сплошного отображения ни каких ограничений нет
-		// поэтому устанавливаем его в любом случае
-		//
-		else if (!_use) {
-			m_usePageMode = false;
-		}
+		m_usePageMode = _use;
 
 		//
 		// Перерисуем себя
@@ -47,45 +33,53 @@ void QPagesTextEdit::setUsePageMode(bool _use)
 	}
 }
 
-void QPagesTextEdit::setPageSize(int _charsInLine, int _linesInPage)
+void PagesTextEdit::setPageFormat(QPageSize::PageSizeId _pageFormat)
 {
-	if (m_charsInLine != _charsInLine
-		|| m_linesInPage != _linesInPage) {
-		m_charsInLine = _charsInLine;
-		m_linesInPage = _linesInPage;
-	}
+	m_pageMetrics.update(_pageFormat);
+
+	//
+	// Перерисуем себя
+	//
+	repaint();
 }
 
-void QPagesTextEdit::paintEvent(QPaintEvent* _event)
+void PagesTextEdit::setPageMargins(const QMarginsF& _margins)
+{
+	m_pageMetrics.update(m_pageMetrics.pageFormat(), _margins);
+
+	//
+	// Перерисуем себя
+	//
+	repaint();
+}
+
+void PagesTextEdit::paintEvent(QPaintEvent* _event)
 {
 	updateInnerGeometry();
+
+	updateVerticalScrollRange();
 
 	paintPagesView();
 
 	QTextEdit::paintEvent(_event);
 }
 
-void QPagesTextEdit::updateInnerGeometry()
+void PagesTextEdit::updateInnerGeometry()
 {
 	//
 	// Формируем параметры отображения
 	//
 	QSizeF documentSize(width() + verticalScrollBar()->width(), -1);
 	QMargins viewportMargins;
+	QMarginsF rootFrameMargins = m_pageMetrics.pxPageMargins();
 
 	if (m_usePageMode) {
 		//
 		// Настроить размер документа
-		// Учитываются:
-		// - кол-во символов в строке
-		// - кол-во строк в документе
-		// - отступы документа
 		//
 
-		QFontMetrics fm(document()->defaultFont());
-		int pageWidth = (document()->documentMargin() * 2) + (fm.width("W") * m_charsInLine);
-		int pageHeight = (document()->documentMargin() * 2) + (fm.height() * m_linesInPage) + 2;
-
+		int pageWidth = m_pageMetrics.pxPageSize().width();
+		int pageHeight = m_pageMetrics.pxPageSize().height();
 		documentSize = QSizeF(pageWidth, pageHeight);
 
 		//
@@ -107,14 +101,44 @@ void QPagesTextEdit::updateInnerGeometry()
 	// Применяем параметры отображения
 	//
 
+	document()->setDocumentMargin(0);
+
 	if (document()->pageSize() != documentSize) {
 		document()->setPageSize(documentSize);
 	}
 
 	setViewportMargins(viewportMargins);
+
+	QTextFrameFormat rootFrameFormat = document()->rootFrame()->frameFormat();
+	rootFrameFormat.setLeftMargin(rootFrameMargins.left());
+	rootFrameFormat.setTopMargin(rootFrameMargins.top());
+	rootFrameFormat.setRightMargin(rootFrameMargins.right());
+	rootFrameFormat.setBottomMargin(rootFrameMargins.bottom());
+	document()->rootFrame()->setFrameFormat(rootFrameFormat);
 }
 
-void QPagesTextEdit::paintPagesView()
+void PagesTextEdit::updateVerticalScrollRange()
+{
+	//
+	// В постраничном режиме показываем страницу целиком
+	//
+	if (m_usePageMode) {
+		verticalScrollBar()->setRange(
+					0,
+					m_pageMetrics.pxPageSize().height() * document()->pageCount()
+					- viewport()->size().height());
+	}
+	//
+	// В обычном режиме просто добавляем немного дополнительной прокрутки для удобства
+	//
+	else {
+		//
+		// TODO
+		//
+	}
+}
+
+void PagesTextEdit::paintPagesView()
 {
 	//
 	// Оформление рисуется только тогда, когда редактор находится в постраничном режиме
@@ -124,9 +148,8 @@ void QPagesTextEdit::paintPagesView()
 		// Нарисовать линии разрыва страниц
 		//
 
-		QFontMetrics fm(document()->defaultFont());
-		int pageWidth = (document()->documentMargin() * 2) + (fm.width("W") * m_charsInLine);
-		int pageHeight = (document()->documentMargin() * 2) + (fm.height() * m_linesInPage) + 2;
+		int pageWidth = m_pageMetrics.pxPageSize().width();
+		int pageHeight = m_pageMetrics.pxPageSize().height();
 
 		QPainter p(viewport());
 		QPen spacePen(palette().window(), 9);

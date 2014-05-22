@@ -1,18 +1,26 @@
-#ifndef QPAGESTEXTEDIT_H
-#define QPAGESTEXTEDIT_H
+#ifndef PAGESTEXTEDIT_H
+#define PAGESTEXTEDIT_H
 
 #include <QTextEdit>
 
-class QPagesTextEdit : public QTextEdit
+#include "PageMetrics.h"
+
+
+class PagesTextEdit : public QTextEdit
 {
 	Q_OBJECT
 public:
-	explicit QPagesTextEdit(QWidget* parent = 0);
+	explicit PagesTextEdit(QWidget* parent = 0);
 
 	/**
-	 * @brief Установить размер страницы текста
+	 * @brief Установить формат страницы
 	 */
-	void setPageSize(int _charsInLine, int _linesInPage);
+	void setPageFormat(QPageSize::PageSizeId _pageFormat);
+
+	/**
+	 * @brief Настроить поля страницы
+	 */
+	void setPageMargins(const QMarginsF& _margins);
 
 	/**
 	 * @brief Получить режим отображения текста
@@ -38,6 +46,11 @@ private:
 	void updateInnerGeometry();
 
 	/**
+	 * @brief Обновить интервал вертикальной прокрутки
+	 */
+	void updateVerticalScrollRange();
+
+	/**
 	 * @brief Нарисовать оформление страниц документа
 	 */
 	void paintPagesView();
@@ -52,15 +65,9 @@ private:
 	bool m_usePageMode;
 
 	/**
-	 * @brief Количество символов в строке
+	 * @brief Метрика страницы редактора
 	 */
-	int m_charsInLine;
-
-	/**
-	 * @brief Количество строк на странице
-	 */
-	int m_linesInPage;
-
+	PageMetrics m_pageMetrics;
 };
 
-#endif // QPAGESTEXTEDIT_H
+#endif // PAGESTEXTEDIT_H

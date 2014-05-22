@@ -2,20 +2,22 @@
 
 #include <QTextDocument>
 #include <QCheckBox>
+#include <QTextFrame>
+#include <QTextFrameFormat>
 
-#include "../src/QPagesTextEdit.h"
+#include "../src/PagesTextEdit.h"
 
 int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
 
-	QPagesTextEdit w;
+	PagesTextEdit w;
 	QTextDocument* doc = new QTextDocument;
-	doc->setDocumentMargin(20);
-	doc->setDefaultFont(QFont("Courier", 12));
+	doc->setDefaultFont(QFont("Courier New", 12));
 	w.setDocument(doc);
 
-	w.setPageSize(30, 10);
+	w.setPageFormat(QPageSize::A4);
+	w.setPageMargins(QMarginsF(37.5, 25, 25, 12.5));
 	w.setUsePageMode(true);
 
 	w.show();
