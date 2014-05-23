@@ -110,11 +110,16 @@ void PagesTextEdit::updateInnerGeometry()
 	setViewportMargins(viewportMargins);
 
 	QTextFrameFormat rootFrameFormat = document()->rootFrame()->frameFormat();
-	rootFrameFormat.setLeftMargin(rootFrameMargins.left());
-	rootFrameFormat.setTopMargin(rootFrameMargins.top());
-	rootFrameFormat.setRightMargin(rootFrameMargins.right());
-	rootFrameFormat.setBottomMargin(rootFrameMargins.bottom());
-	document()->rootFrame()->setFrameFormat(rootFrameFormat);
+	if (rootFrameFormat.leftMargin() != rootFrameMargins.left()
+		|| rootFrameFormat.topMargin() != rootFrameMargins.top()
+		|| rootFrameFormat.rightMargin() != rootFrameMargins.right()
+		|| rootFrameFormat.bottomMargin() != rootFrameMargins.bottom()) {
+		rootFrameFormat.setLeftMargin(rootFrameMargins.left());
+		rootFrameFormat.setTopMargin(rootFrameMargins.top());
+		rootFrameFormat.setRightMargin(rootFrameMargins.right());
+		rootFrameFormat.setBottomMargin(rootFrameMargins.bottom());
+		document()->rootFrame()->setFrameFormat(rootFrameFormat);
+	}
 }
 
 void PagesTextEdit::updateVerticalScrollRange()
