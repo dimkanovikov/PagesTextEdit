@@ -9,6 +9,7 @@
 class PagesTextEdit : public QTextEdit
 {
 	Q_OBJECT
+
 public:
 	explicit PagesTextEdit(QWidget* parent = 0);
 
@@ -27,17 +28,38 @@ public:
 	 */
 	bool usePageMode() const;
 
+	/**
+	 * @brief Установить коэффициент масштабирования
+	 */
+	void setZoomRange(int _zoomRange);
+
 public slots:
 	/**
 	 * @brief Установить режим отображения текста
 	 */
 	void setUsePageMode(bool _use);
 
+signals:
+	/**
+	 * @brief Изменился коэффициент масштабирования
+	 */
+	void zoomRangeChanged(int);
+
 protected:
 	/**
 	 * @brief Переопределяется для корректировки документа и прорисовки оформления страниц
 	 */
 	void paintEvent(QPaintEvent* _event);
+
+	/**
+	 * @brief Возобновить масштабирование
+	 */
+	void resetZoom();
+
+	/**
+	 * @brief Переопределяется для реализации увеличения/уменьшения текста
+	 */
+	void wheelEvent(QWheelEvent* _event);
 
 private:
 	/**
@@ -55,6 +77,14 @@ private:
 	 */
 	void paintPagesView();
 
+	/**
+	 * @brief Собственные реализации методов масштабирования содержимого
+	 */
+	/** @{ */
+	void privateZoomIn(qreal _range);
+	void privateZoomOut(qreal _range);
+	/** @} */
+
 private:
 	/**
 	 * @brief Режим отображения текста
@@ -68,6 +98,11 @@ private:
 	 * @brief Метрика страницы редактора
 	 */
 	PageMetrics m_pageMetrics;
+
+	/**
+	 * @brief Текущий коэффициент масштабирования
+	 */
+	int m_zoomRange;
 };
 
 #endif // PAGESTEXTEDIT_H

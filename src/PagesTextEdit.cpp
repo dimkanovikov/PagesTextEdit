@@ -11,7 +11,7 @@
 PagesTextEdit::PagesTextEdit(QWidget *parent) :
 	QTextEdit(parent),
 	m_usePageMode(false),
-	m_pageMetrics(this)
+	m_zoomRange(0)
 {
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 }
@@ -19,6 +19,41 @@ PagesTextEdit::PagesTextEdit(QWidget *parent) :
 bool PagesTextEdit::usePageMode() const
 {
 	return m_usePageMode;
+}
+
+void PagesTextEdit::setZoomRange(int _zoomRange)
+{
+	//
+	// Отменяем предыдущее мастштабирование
+	//
+	qreal zoomRange = (qreal)(m_zoomRange + 10) / 10;
+	privateZoomOut(zoomRange);
+
+	//
+	// Обновляем коэффициент
+	//
+	m_zoomRange = _zoomRange;
+	zoomRange = (qreal)(m_zoomRange + 10) / 10;
+
+	//
+	// Масштабируем с новым коэффициентом
+	//
+	{
+		//
+		// ... шрифт
+		//
+		privateZoomIn(zoomRange);
+
+		//
+		// ... документ
+		//
+		m_pageMetrics.zoomIn(zoomRange);
+	}
+
+	//
+	// Уведомляем о том, что коэффициент изменился
+	//
+	emit zoomRangeChanged(m_zoomRange);
 }
 
 void PagesTextEdit::setUsePageMode(bool _use)
@@ -62,6 +97,29 @@ void PagesTextEdit::paintEvent(QPaintEvent* _event)
 	paintPagesView();
 
 	QTextEdit::paintEvent(_event);
+}
+
+void PagesTextEdit::resetZoom()
+{
+//	privateZoomIn(m_zoomRange);
+}
+
+void PagesTextEdit::wheelEvent(QWheelEvent* _event)
+{
+	if (_event->modifiers() & Qt::ControlModifier) {
+		if (_event->orientation() == Qt::Vertical) {
+			//
+			// zoomRange > 0 - Текст увеличивается
+			// zoomRange < 0 - Текст уменьшается
+			//
+			int zoomRange = m_zoomRange + (_event->angleDelta().y() / 120);
+			setZoomRange(zoomRange);
+
+			_event->accept();
+		}
+	} else {
+		QTextEdit::wheelEvent(_event);
+	}
 }
 
 void PagesTextEdit::updateInnerGeometry()
@@ -153,14 +211,14 @@ void PagesTextEdit::paintPagesView()
 		// Нарисовать линии разрыва страниц
 		//
 
-		int pageWidth = m_pageMetrics.pxPageSize().width();
-		int pageHeight = m_pageMetrics.pxPageSize().height();
+		qreal pageWidth = m_pageMetrics.pxPageSize().width();
+		qreal pageHeight = m_pageMetrics.pxPageSize().height();
 
 		QPainter p(viewport());
 		QPen spacePen(palette().window(), 9);
 		QPen borderPen(palette().dark(), 1);
 
-		int curHeight = pageHeight - (verticalScrollBar()->value() % pageHeight);
+		qreal curHeight = pageHeight - (verticalScrollBar()->value() % (int)pageHeight);
 
 		//
 		// Нарисовать верхнюю границу
@@ -209,3 +267,90 @@ void PagesTextEdit::paintPagesView()
 		}
 	}
 }
+
+namespace {
+	/**
+	 * @brief Перевести пиксели в поинты
+	 */
+	static qreal pixelsToPoints(const QPaintDevice* _device, qreal _pixels)
+	{
+		return _pixels * (qreal)72 / (qreal)_device->logicalDpiX();
+	}
+
+	/**
+	 * @brief Вычислить масштабированное значение
+	 */
+	static qreal scale(qreal _source, qreal _scaleRange)
+	{
+		qreal result = _source;
+		if (_scaleRange > 0) {
+			result = _source * _scaleRange;
+		} else if (_scaleRange < 0) {
+			result = _source / _scaleRange * -1;
+		} else {
+			Q_ASSERT_X(0, "scale", "scale to zero range");
+		}
+		return result;
+	}
+}
+
+void PagesTextEdit::privateZoomIn(qreal _range)
+{
+	//
+	// Нужно увеличить на _range пикселей
+	// * шрифт каждого блока
+	// * формат каждого блока
+	//
+	QTextCursor cursor(document());
+	cursor.beginEditBlock();
+
+	do {
+		//
+		// Выделим редактируемый блок текста
+		//
+		cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+
+		//
+		// Обновляем настройки шрифта
+		//
+		QTextCharFormat blockCharFormat = cursor.charFormat();
+		QFont blockFont = blockCharFormat.font();
+		blockFont.setPointSizeF(
+					scale(blockFont.pointSizeF(), pixelsToPoints(this, _range))
+					);
+		blockCharFormat.setFont(blockFont);
+		cursor.mergeCharFormat(blockCharFormat);
+		cursor.mergeBlockCharFormat(blockCharFormat);
+
+		//
+		// Обновляем настройки позиционирования
+		//
+		QTextBlockFormat blockFormat = cursor.blockFormat();
+		if (blockFormat.leftMargin() > 0) {
+			blockFormat.setLeftMargin(scale(blockFormat.leftMargin(), _range));
+		}
+		if (blockFormat.topMargin() > 0) {
+			blockFormat.setTopMargin(scale(blockFormat.topMargin(), _range));
+		}
+		if (blockFormat.rightMargin() > 0) {
+			blockFormat.setRightMargin(scale(blockFormat.rightMargin(), _range));
+		}
+		if (blockFormat.bottomMargin() > 0) {
+			blockFormat.setBottomMargin(scale(blockFormat.bottomMargin(), _range));
+		}
+
+		//
+		// Переходим к следующему блоку
+		//
+		cursor.movePosition(QTextCursor::NextBlock);
+	} while (!cursor.atEnd());
+
+	cursor.endEditBlock();
+}
+
+void PagesTextEdit::privateZoomOut(qreal _range)
+{
+	privateZoomIn(-_range);
+}
+
+

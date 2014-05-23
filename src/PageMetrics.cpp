@@ -1,11 +1,21 @@
 #include "PageMetrics.h"
 
-#include <QPaintDevice>
+#include <QApplication>
+#include <QDesktopWidget>
 
 
-PageMetrics::PageMetrics(QPaintDevice* _device, QPageSize::PageSizeId _pageFormat,
+namespace {
+	static qreal mmToInches(qreal mm) { return mm * 0.039370147; }
+}
+
+qreal PageMetrics::mmToPx(qreal _mm, bool _x)
+{
+	return ::mmToInches(_mm) * (_x ? qApp->desktop()->logicalDpiX() : qApp->desktop()->logicalDpiY());
+}
+
+PageMetrics::PageMetrics(QPageSize::PageSizeId _pageFormat,
 						 QMarginsF _mmPageMargins) :
-	m_device(_device)
+	m_zoomRange(1)
 {
 	update(_pageFormat, _mmPageMargins);
 }
@@ -32,11 +42,36 @@ void PageMetrics::update(QPageSize::PageSizeId _pageFormat, QMarginsF _mmPageMar
 					  );
 }
 
-namespace {
-	static qreal mmToInches(qreal mm) { return mm * 0.039370147; }
+void PageMetrics::zoomIn(qreal _zoomRange)
+{
+	m_zoomRange = _zoomRange;
 }
 
-qreal PageMetrics::mmToPx(qreal _mm, bool _x) const
+QPageSize::PageSizeId PageMetrics::pageFormat() const
 {
-	return ::mmToInches(_mm) * (_x ? m_device->logicalDpiX() : m_device->logicalDpiY());
+	return m_pageFormat;
+}
+
+QSizeF PageMetrics::mmPageSize() const
+{
+	return m_mmPageSize;
+}
+
+QMarginsF PageMetrics::mmPageMargins() const
+{
+	return m_mmPageMargins * m_zoomRange;
+}
+
+QSizeF PageMetrics::pxPageSize() const
+{
+	return QSizeF(m_pxPageSize.width() * m_zoomRange,
+				  m_pxPageSize.height() * m_zoomRange);
+}
+
+QMarginsF PageMetrics::pxPageMargins() const
+{
+	return QMarginsF(m_pxPageMargins.left() * m_zoomRange,
+					 m_pxPageMargins.top() * m_zoomRange,
+					 m_pxPageMargins.bottom() * m_zoomRange,
+					 m_pxPageMargins.right() * m_zoomRange);
 }

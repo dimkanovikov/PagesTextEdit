@@ -15,8 +15,15 @@ class QPaintDevice;
 class PageMetrics
 {
 public:
-	PageMetrics(QPaintDevice* _device,
-				QPageSize::PageSizeId _pageFormat = QPageSize::A4,
+	/**
+	 * @brief Перевести миллиметры в пикселы
+	 * @param _x указывает направление (горизонтальное - true или вертикальное - false), в котором
+	 * необходимо произвести рассчёт
+	 */
+	static qreal mmToPx(qreal _mm, bool _x = true);
+
+public:
+	PageMetrics(QPageSize::PageSizeId _pageFormat = QPageSize::A4,
 				QMarginsF _mmMargins = QMarginsF());
 
 	/**
@@ -26,30 +33,24 @@ public:
 				QMarginsF _mmPageMargins = QMarginsF());
 
 	/**
+	 * @brief Масштабирование метрик
+	 *
+	 * Учитывается только для пиксельных значений
+	 */
+	void zoomIn(qreal _zoomRange);
+
+	/**
 	 * @brief Методы доступа к параметрам страницы
 	 */
 	/** @{ */
-	QPageSize::PageSizeId pageFormat() const { return m_pageFormat; }
-	QSizeF mmPageSize() const { return m_mmPageSize; }
-	QMarginsF mmPageMargins() const { return m_mmPageMargins; }
-	QSizeF pxPageSize() const { return m_pxPageSize; }
-	QMarginsF pxPageMargins() const { return m_pxPageMargins; }
+	QPageSize::PageSizeId pageFormat() const;
+	QSizeF mmPageSize() const;
+	QMarginsF mmPageMargins() const;
+	QSizeF pxPageSize() const;
+	QMarginsF pxPageMargins() const;
 	/** @} */
 
 private:
-	/**
-	 * @brief Перевести миллиметры в пикселы
-	 * @param _x указывает направление (горизонтальное - true или вертикальное - false), в котором
-	 * необходимо произвести рассчёт
-	 */
-	qreal mmToPx(qreal _mm, bool _x) const;
-
-private:
-	/**
-	 * @brief Устройство вывода, по которому определяется dpi
-	 */
-	QPaintDevice *m_device;
-
 	/**
 	 * @brief Формат страницы
 	 */
@@ -70,6 +71,11 @@ private:
 	QSizeF m_pxPageSize;
 	QMarginsF m_pxPageMargins;
 	/** @} */
+
+	/**
+	 * @brief Коэффициент масштабирования
+	 */
+	qreal m_zoomRange;
 
 };
 
