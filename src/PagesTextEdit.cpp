@@ -23,6 +23,9 @@ bool PagesTextEdit::usePageMode() const
 
 void PagesTextEdit::setZoomRange(int _zoomRange)
 {
+    // Q_ASSERT_X will be raised
+    if (_zoomRange <= -10) return;
+
 	//
 	// Отменяем предыдущее мастштабирование
 	//
@@ -221,6 +224,8 @@ void PagesTextEdit::paintPagesView()
 		QPen borderPen(palette().dark(), 1);
 
 		qreal curHeight = pageHeight - (verticalScrollBar()->value() % (int)pageHeight);
+        bool can_draw_next_page_line = verticalScrollBar()->value() != verticalScrollBar()->maximum(); // next page top border fix
+        int x = pageWidth - (width() % 2 == 0 ? 1 : 0); // right border resize fix
 
 		//
 		// Нарисовать верхнюю границу
@@ -245,11 +250,12 @@ void PagesTextEdit::paintPagesView()
 			// ... нижняя
 			p.drawLine(0, curHeight-8, pageWidth, curHeight-8);
 			// ... верхняя следующей страницы
-			p.drawLine(0, curHeight, pageWidth, curHeight);
+            if (can_draw_next_page_line)
+                p.drawLine(0, curHeight, pageWidth, curHeight);
 			// ... левая
 			p.drawLine(0, curHeight-pageHeight, 0, curHeight-8);
 			// ... правая
-			p.drawLine(pageWidth, curHeight-pageHeight, pageWidth, curHeight-8);
+            p.drawLine(x, curHeight-pageHeight, x, curHeight-8);
 
 			curHeight += pageHeight;
 		}
@@ -265,7 +271,7 @@ void PagesTextEdit::paintPagesView()
 			// ... левая
 			p.drawLine(0, curHeight-pageHeight, 0, height());
 			// ... правая
-			p.drawLine(pageWidth, curHeight-pageHeight, pageWidth, height());
+            p.drawLine(x, curHeight-pageHeight, x, height());
 		}
 	}
 }
