@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
 	w.setPageMargins(QMarginsF(37.5, 25, 25, 12.5));
 	w.setUsePageMode(true);
 
+	w.resize(600, 400);
 	w.show();
 
 	return a.exec();
