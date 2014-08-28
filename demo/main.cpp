@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 
 	PagesTextEdit w;
 	QTextDocument* doc = new QTextDocument;
-	doc->setDefaultFont(QFont("Courier New", 12));
+	doc->setDefaultFont(QFont("Courier", 12));
 	w.setDocument(doc);
 
 	w.setPageFormat(QPageSize::A4);

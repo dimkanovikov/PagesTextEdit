@@ -2,7 +2,6 @@
 
 #include <QPainter>
 #include <QPaintEvent>
-#include <QDebug>
 #include <QScrollBar>
 #include <QTextFrame>
 #include <QTextFrameFormat>
@@ -12,7 +11,7 @@ namespace {
 	/**
 	 * @brief Минимальный размер коэффициэнта масштабирования
 	 */
-	const int MINIMUM_ZOOM_RANGE = -10;
+	const int MINIMUM_ZOOM_RANGE = -6;
 
 	/**
 	 * @brief Идентификатор свойства масштабирования для блока
@@ -56,6 +55,7 @@ namespace {
 PagesTextEdit::PagesTextEdit(QWidget *parent) :
 	QTextEdit(parent),
 	m_usePageMode(false),
+	m_addBottomSpace(true),
 	m_inZoomHandling(false),
 	m_zoomRange(0),
 	m_document(0)
@@ -67,6 +67,8 @@ PagesTextEdit::PagesTextEdit(QWidget *parent) :
 	//
 	connect(this, SIGNAL(textChanged()), this, SLOT(aboutUpdateZoomRangeHandling()));
 	aboutUpdateZoomRangeHandling();
+
+	connect(verticalScrollBar(), SIGNAL(rangeChanged(int,int)), this, SLOT(aboutVerticalScrollRangeChanged(int,int)));
 }
 
 bool PagesTextEdit::usePageMode() const
@@ -122,6 +124,18 @@ void PagesTextEdit::setUsePageMode(bool _use)
 {
 	if (m_usePageMode != _use) {
 		m_usePageMode = _use;
+
+		//
+		// Перерисуем себя
+		//
+		repaint();
+	}
+}
+
+void PagesTextEdit::setAddSpaceToBottom(bool _addSpace)
+{
+	if (m_addBottomSpace != _addSpace) {
+		m_addBottomSpace = _addSpace;
 
 		//
 		// Перерисуем себя
@@ -254,9 +268,13 @@ void PagesTextEdit::updateVerticalScrollRange()
 	// В обычном режиме просто добавляем немного дополнительной прокрутки для удобства
 	//
 	else {
-		//
-		// TODO
-		//
+		const int SCROLL_DELTA = 800;
+		int maximumValue =
+				document()->size().height() - viewport()->size().height()
+				+ (m_addBottomSpace ? SCROLL_DELTA : 0);
+		if (verticalScrollBar()->maximum() != maximumValue) {
+			verticalScrollBar()->setRange(0, maximumValue);
+		}
 	}
 }
 
@@ -311,12 +329,12 @@ void PagesTextEdit::paintPagesView()
 			p.drawLine(0, curHeight-8, pageWidth, curHeight-8);
 			// ... верхняя следующей страницы
 			if (canDrawNextPageLine) {
-                p.drawLine(0, curHeight, pageWidth, curHeight);
+				p.drawLine(0, curHeight, pageWidth, curHeight);
 			}
 			// ... левая
 			p.drawLine(0, curHeight-pageHeight, 0, curHeight-8);
 			// ... правая
-            p.drawLine(x, curHeight-pageHeight, x, curHeight-8);
+			p.drawLine(x, curHeight-pageHeight, x, curHeight-8);
 
 			curHeight += pageHeight;
 		}
@@ -332,7 +350,7 @@ void PagesTextEdit::paintPagesView()
 			// ... левая
 			p.drawLine(0, curHeight-pageHeight, 0, height());
 			// ... правая
-            p.drawLine(x, curHeight-pageHeight, x, height());
+			p.drawLine(x, curHeight-pageHeight, x, height());
 		}
 	}
 }
@@ -447,4 +465,18 @@ void PagesTextEdit::aboutUpdateZoomRange(int _position, int _charsRemoved, int _
 	}
 }
 
+void PagesTextEdit::aboutVerticalScrollRangeChanged(int _minimum, int _maximum)
+{
+	Q_UNUSED(_minimum);
+
+	int scrollValue = verticalScrollBar()->value();
+
+	//
+	// Если текущая позиция прокрутки больше максимального значения,
+	// значит текстэдит сам обновил интервал, применяем собственную функцию коррекции
+	//
+	if (scrollValue > _maximum) {
+		updateVerticalScrollRange();
+	}
+}
 
