@@ -13,12 +13,13 @@ int main(int argc, char *argv[])
 
 	PagesTextEdit w;
 	QTextDocument* doc = new QTextDocument;
-	doc->setDefaultFont(QFont("Courier Prime Cyr", 12));
+	doc->setDefaultFont(QFont("Courier", 12));
 	w.setDocument(doc);
 
-	w.setPageFormat(QPageSize::A4);
-	w.setPageMargins(QMarginsF(37.5, 25, 25, 12.5));
+	w.setPageFormat(QPageSize::A6);
+	w.setPageMargins(QMarginsF(15, 15, 15, 15));
 	w.setUsePageMode(true);
+	w.setPageNumbersAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
 	w.resize(600, 400);
 	w.show();
