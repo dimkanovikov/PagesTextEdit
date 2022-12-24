@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QTextFrame>
 #include <QTextFrameFormat>
+#include <QMainWindow>
 
 #include "../src/PagesTextEdit.h"
 
@@ -11,16 +12,19 @@ int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
 
-	PagesTextEdit w;
+	
+	PagesTextEdit editor;
 	QTextDocument* doc = new QTextDocument;
 	doc->setDefaultFont(QFont("Courier", 12));
-	w.setDocument(doc);
+	editor.setDocument(doc);
 
-	w.setPageFormat(QPageSize::A6);
-	w.setPageMargins(QMarginsF(15, 15, 15, 15));
-	w.setUsePageMode(true);
-	w.setPageNumbersAlignment(Qt::AlignTop | Qt::AlignHCenter);
-
+	editor.setPageFormat(QPageSize::A6);
+	editor.setPageMargins(QMarginsF(15, 15, 15, 15));
+	editor.setUsePageMode(true);
+	editor.setPageNumbersAlignment(Qt::AlignTop | Qt::AlignHCenter);
+	
+	QMainWindow w;
+        w.setCentralWidget(editor);
 	w.resize(600, 400);
 	w.show();
 
